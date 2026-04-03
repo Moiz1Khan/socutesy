@@ -12,7 +12,7 @@ COPY frontend/package*.json ./
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_MAX_SOCKETS=1
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm-frontend,target=/root/.npm \
     npm ci --no-audit --no-fund
 COPY frontend/ ./
 # Vite bakes these at build time
@@ -31,7 +31,7 @@ ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_MAX_SOCKETS=1
 # `npm install` with lockfile is less memory-hungry than `npm ci` for small trees
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm-server,target=/root/.npm \
     npm install --omit=dev --no-audit --no-fund
 COPY server/ ./
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
