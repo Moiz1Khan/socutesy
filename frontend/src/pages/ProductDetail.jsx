@@ -27,6 +27,7 @@ export default function ProductDetail() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [quantity, setQuantity] = useState(1)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- reset selection and gallery when slug changes */
   useEffect(() => {
     if (product) setSelection(defaultSelection(product))
   }, [slug, product])
@@ -36,6 +37,7 @@ export default function ProductDetail() {
     setLightboxOpen(false)
     setQuantity(1)
   }, [slug])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!lightboxOpen) return

@@ -23,7 +23,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // PascalCase components + framer-motion `motion` namespace (motion.div)
+      'no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^(?:[A-Z_].*|motion)$' },
+      ],
+    },
+  },
+  {
+    files: ['**/context/**/*.{js,jsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

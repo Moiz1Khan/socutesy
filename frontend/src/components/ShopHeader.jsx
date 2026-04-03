@@ -14,7 +14,6 @@ export function ShopHeader() {
   const {
     searchQuery,
     setSearchQuery,
-    categoryFilter,
     setCategoryFilter,
   } = useShop()
   const [cartOpen, setCartOpen] = useState(false)
