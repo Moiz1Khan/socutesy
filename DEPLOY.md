@@ -13,6 +13,10 @@ One **Docker** image runs the **Vite build**, **Express API**, and serves the sh
 2. Railway should detect the **Dockerfile** at the repo root (`railway.toml` sets `builder = DOCKERFILE`).
 3. **Do not** set the service root to `server` only — the Dockerfile must build from the **repository root**.
 
+### Build failed with exit code 137?
+
+That often means the **build ran out of memory** while `npm` was installing (Linux may send **SIGKILL**, exit **128+9=137**). Try: redeploy with the latest Dockerfile (lower npm concurrency + npm cache mounts), or increase the **builder** resources in Railway if your plan allows. Logs that say **context canceled** can also mean the build was stopped manually or timed out.
+
 ## 2. Docker build arguments (required)
 
 In the service → **Settings** → **Build** → **Docker Build Args** (name varies):
