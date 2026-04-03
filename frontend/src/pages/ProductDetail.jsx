@@ -7,6 +7,7 @@ import {
   defaultSelection,
   getPrice,
   getSelectionSummary,
+  isKeepsakeCustomizationComplete,
 } from '../utils/pricing'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { ShopSelect } from '../components/ShopSelect'
@@ -62,6 +63,12 @@ export default function ProductDetail() {
 
   const galleryImages = useMemo(() => {
     if (!product) return []
+    if (selection.kind === 'keepsake' && product.frameLayouts?.length) {
+      if (product.images?.length) return product.images
+      return product.frameLayouts.map(
+        (l) => l.previewImage || product.image,
+      )
+    }
     if (product.sharedVariantGallery?.length) {
       return product.sharedVariantGallery
     }
@@ -77,6 +84,8 @@ export default function ProductDetail() {
     if (product.images?.length > 0) return product.images
     return [product.image]
   }, [product, selection])
+
+  const hasKeepsake = Boolean(product?.frameLayouts?.length)
 
   const syncThumbnailToVariant =
     Boolean(product?.variants?.[0]?.image) &&
@@ -95,7 +104,13 @@ export default function ProductDetail() {
   }
 
   const hasPaperOptions = Boolean(product.options?.length)
-  const hasFlatVariants = Boolean(product.variants?.length)
+  const hasFlatVariants =
+    Boolean(product.variants?.length) && !hasKeepsake
+
+  const keepsakeIncomplete =
+    hasKeepsake &&
+    selection.kind === 'keepsake' &&
+    !isKeepsakeCustomizationComplete(product, selection)
 
   const onPaperSelect = (paperIndex) => {
     setSelection((prev) => {
@@ -109,6 +124,35 @@ export default function ProductDetail() {
     setSelection((prev) => {
       if (prev.kind !== 'options') return prev
       return { ...prev, sideIndex }
+    })
+  }
+
+  const onKeepsakeSizeSelect = (sizeIndex) => {
+    setSelection((prev) => {
+      if (prev.kind !== 'keepsake') return prev
+      return { ...prev, sizeIndex }
+    })
+  }
+
+  const onKeepsakeLayoutSelect = (layoutIndex) => {
+    const layout = product.frameLayouts?.[layoutIndex]
+    setSelection((prev) => {
+      if (prev.kind !== 'keepsake') return prev
+      const customization = Object.fromEntries(
+        (layout?.textFields ?? []).map((f) => [f.key, '']),
+      )
+      return { ...prev, layoutIndex, customization }
+    })
+    setActiveImageIndex(layoutIndex)
+  }
+
+  const setKeepsakeField = (key, value) => {
+    setSelection((prev) => {
+      if (prev.kind !== 'keepsake') return prev
+      return {
+        ...prev,
+        customization: { ...prev.customization, [key]: value },
+      }
     })
   }
 
@@ -136,7 +180,12 @@ export default function ProductDetail() {
   }
 
   const handlePlaceOrder = () => {
+    if (keepsakeIncomplete) return
     const state = { price, summary, quantity }
+    if (selection.kind === 'keepsake') {
+      const layout = product.frameLayouts?.[selection.layoutIndex]
+      if (layout) state.requiredUploadCount = layout.photoCount
+    }
     if (getOrderFlowType(product.slug) === 'upload') {
       navigate(`/order/${product.slug}/upload`, { state })
       return
@@ -194,6 +243,23 @@ export default function ProductDetail() {
                   type="button"
                   onClick={() => {
                     setActiveImageIndex(i)
+                    if (selection.kind === 'keepsake') {
+                      const n = product.frameLayouts?.length ?? 0
+                      if (i < n) {
+                        const layout = product.frameLayouts[i]
+                        setSelection((prev) => {
+                          if (prev.kind !== 'keepsake') return prev
+                          const customization = Object.fromEntries(
+                            (layout?.textFields ?? []).map((f) => [
+                              f.key,
+                              '',
+                            ]),
+                          )
+                          return { ...prev, layoutIndex: i, customization }
+                        })
+                      }
+                      return
+                    }
                     if (
                       syncThumbnailToVariant &&
                       selection.kind === 'variants'
@@ -249,6 +315,87 @@ export default function ProductDetail() {
           )}
 
           <div className="mt-8 space-y-5 rounded-2xl border border-[#fce7f3] bg-[#fffafc] p-5 shadow-inner shadow-pink-100/40">
+            {hasKeepsake && selection.kind === 'keepsake' && (
+              <>
+                <label className="block text-sm font-semibold text-[#9d174d]">
+                  {product.variantSelectLabel ?? 'Size'}
+                  <ShopSelect
+                    value={selection.sizeIndex}
+                    options={product.variants.map(
+                      (v) => variantOptionLabel(v),
+                    )}
+                    onChange={onKeepsakeSizeSelect}
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-[#9d174d]">
+                  Layout design
+                  <ShopSelect
+                    value={selection.layoutIndex}
+                    options={product.frameLayouts.map((l) => l.name)}
+                    onChange={onKeepsakeLayoutSelect}
+                  />
+                </label>
+                {product.frameLayouts[selection.layoutIndex]?.blurb && (
+                  <p className="text-xs leading-relaxed text-[#6b7280]">
+                    {product.frameLayouts[selection.layoutIndex].blurb}
+                  </p>
+                )}
+                <div className="space-y-3 border-t border-[#fce7f3] pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#be185d]">
+                    Your text on the frame
+                  </p>
+                  {product.frameLayouts[selection.layoutIndex]?.textFields?.map(
+                    (field) =>
+                      field.multiline ? (
+                        <label
+                          key={field.key}
+                          className="block text-sm font-semibold text-[#9d174d]"
+                        >
+                          {field.label}
+                          <textarea
+                            rows={3}
+                            value={
+                              selection.customization[field.key] ?? ''
+                            }
+                            onChange={(e) =>
+                              setKeepsakeField(field.key, e.target.value)
+                            }
+                            placeholder={field.placeholder}
+                            className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm font-normal text-[#374151] placeholder:text-[#9ca3af] focus:border-[#ff8fa3] focus:outline-none focus:ring-2 focus:ring-[#ff8fa3]/30"
+                          />
+                        </label>
+                      ) : (
+                        <label
+                          key={field.key}
+                          className="block text-sm font-semibold text-[#9d174d]"
+                        >
+                          {field.label}
+                          <input
+                            type="text"
+                            value={
+                              selection.customization[field.key] ?? ''
+                            }
+                            onChange={(e) =>
+                              setKeepsakeField(field.key, e.target.value)
+                            }
+                            placeholder={field.placeholder}
+                            className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm font-normal text-[#374151] placeholder:text-[#9ca3af] focus:border-[#ff8fa3] focus:outline-none focus:ring-2 focus:ring-[#ff8fa3]/30"
+                          />
+                        </label>
+                      ),
+                  )}
+                </div>
+                <p className="text-xs text-[#9d174d]">
+                  You’ll upload exactly{' '}
+                  <span className="font-semibold">
+                    {product.frameLayouts[selection.layoutIndex]?.photoCount}{' '}
+                    photos
+                  </span>{' '}
+                  on the next step.
+                </p>
+              </>
+            )}
+
             {hasPaperOptions && selection.kind === 'options' && (
               <>
                 <label className="block text-sm font-semibold text-[#9d174d]">
@@ -326,7 +473,13 @@ export default function ProductDetail() {
             <button
               type="button"
               onClick={handlePlaceOrder}
-              className="flex flex-1 items-center justify-center rounded-2xl border-2 border-[#fbcfe8] bg-white py-3.5 text-center text-sm font-semibold text-[#db2777] shadow-sm transition hover:bg-[#fdf2f8]"
+              disabled={keepsakeIncomplete}
+              title={
+                keepsakeIncomplete
+                  ? 'Fill all text fields to continue'
+                  : undefined
+              }
+              className="flex flex-1 items-center justify-center rounded-2xl border-2 border-[#fbcfe8] bg-white py-3.5 text-center text-sm font-semibold text-[#db2777] shadow-sm transition hover:bg-[#fdf2f8] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Place order
             </button>

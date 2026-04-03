@@ -35,6 +35,7 @@ export default function PaymentPage() {
     cartSnapshot,
     customer,
     serverOrderId,
+    selectionSummary,
     clearOrder,
   } = useOrderFlow()
 
@@ -84,6 +85,7 @@ export default function PaymentPage() {
       includeDelivery,
       customer,
       orderRef: serverOrderId ? formatOrderRef(serverOrderId) : null,
+      selectionLine: selectionSummary || undefined,
     })
     window.open(whatsappLink(text), '_blank', 'noopener,noreferrer')
     if (isCartCheckout) {

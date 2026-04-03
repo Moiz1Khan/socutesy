@@ -1,86 +1,81 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getProductBySlug } from '../utils/products'
 import {
-  getOrderFlowType,
-  UPLOAD_PRODUCT_SLUGS,
-  getRequiredUploadCount,
+  getCartLinesRequiringUpload,
+  getRequiredUploadCountForLine,
+  getFirstIncompleteCartUploadIndex,
 } from '../utils/orderFlow'
-import {
-  defaultSelection,
-  getPrice,
-  getSelectionSummary,
-} from '../utils/pricing'
 import { useOrderFlow } from '../context/OrderFlowContext'
 
-export default function UploadPage() {
-  const { slug } = useParams()
+export default function CartCheckoutUploadPage() {
+  const { uploadIndex } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const product = getProductBySlug(slug)
   const {
-    setOrderMeta,
-    addFiles,
-    removeFileAt,
-    files,
-    clearFiles,
-    selectionSummary,
-    requiredUploadCount,
+    checkoutSource,
+    cartSnapshot,
+    setCheckoutFromCart,
+    cartLineFiles,
+    addCartLineFiles,
+    removeCartLineFileAt,
+    clearCartLineFiles,
   } = useOrderFlow()
   const [pickHint, setPickHint] = useState(null)
 
-  const priceFromNav = location.state?.price
-  const summaryFromNav = location.state?.summary
-  const quantityFromNav = location.state?.quantity
-  const requiredFromNav = location.state?.requiredUploadCount
+  useEffect(() => {
+    const items = location.state?.cartItems
+    if (Array.isArray(items) && items.length && checkoutSource !== 'cart') {
+      setCheckoutFromCart(items)
+    }
+  }, [location.state, checkoutSource, setCheckoutFromCart])
 
   useEffect(() => {
-    if (!product || !UPLOAD_PRODUCT_SLUGS.has(slug)) {
+    if (checkoutSource !== 'cart' || !cartSnapshot?.length) {
       navigate('/', { replace: true })
-      return
     }
-    if (priceFromNav != null && summaryFromNav != null) {
-      setOrderMeta({
-        slug: product.slug,
-        name: product.name,
-        price: priceFromNav,
-        summary: summaryFromNav,
-        quantity: quantityFromNav ?? 1,
-        requiredUploadCount: requiredFromNav,
-      })
-      return
-    }
-    const sel = defaultSelection(product)
-    const price = getPrice(product, sel)
-    const summary = getSelectionSummary(product, sel)
-    const req = getRequiredUploadCount(slug, summary)
-    setOrderMeta({
-      slug: product.slug,
-      name: product.name,
-      price,
-      summary,
-      quantity: 1,
-      requiredUploadCount: req ?? undefined,
-    })
-  }, [
-    product,
-    slug,
-    navigate,
-    setOrderMeta,
-    priceFromNav,
-    summaryFromNav,
-    quantityFromNav,
-    requiredFromNav,
-  ])
+  }, [checkoutSource, cartSnapshot, navigate])
 
-  if (!product || getOrderFlowType(slug) !== 'upload') {
+  const uploadQueue = useMemo(
+    () => getCartLinesRequiringUpload(cartSnapshot ?? []),
+    [cartSnapshot],
+  )
+  const idxRaw = Number.parseInt(uploadIndex ?? '0', 10)
+  const idx = Number.isFinite(idxRaw) && idxRaw >= 0 ? idxRaw : 0
+  const currentLine =
+    idx >= 0 && idx < uploadQueue.length ? uploadQueue[idx] : null
+
+  useEffect(() => {
+    if (!cartSnapshot?.length) return
+    if (uploadQueue.length === 0) {
+      navigate('/checkout/customer', { replace: true })
+      return
+    }
+    if (idx < 0 || idx >= uploadQueue.length) {
+      navigate('/checkout/upload/0', { replace: true })
+      return
+    }
+    const incomplete = getFirstIncompleteCartUploadIndex(
+      uploadQueue,
+      cartLineFiles,
+    )
+    if (incomplete >= 0 && incomplete < idx) {
+      navigate(`/checkout/upload/${incomplete}`, { replace: true })
+    }
+  }, [cartSnapshot, uploadQueue, cartLineFiles, idx, navigate])
+
+  if (
+    checkoutSource !== 'cart' ||
+    !cartSnapshot?.length ||
+    uploadQueue.length === 0 ||
+    !currentLine
+  ) {
     return null
   }
 
-  const requiredCount =
-    requiredUploadCount ??
-    getRequiredUploadCount(slug, selectionSummary)
+  const lineId = currentLine.lineId
+  const files = cartLineFiles[lineId] ?? []
+  const requiredCount = getRequiredUploadCountForLine(currentLine)
   const atPhotoLimit = requiredCount != null && files.length >= requiredCount
   const canContinue =
     requiredCount != null
@@ -108,23 +103,35 @@ export default function UploadPage() {
         )
       }
     }
-    addFiles(incoming)
+    addCartLineFiles(lineId, incoming)
     e.target.value = ''
   }
 
   const onContinue = () => {
     if (!canContinue) return
-    navigate(`/order/${slug}/customer`)
+    if (idx < uploadQueue.length - 1) {
+      navigate(`/checkout/upload/${idx + 1}`)
+      return
+    }
+    navigate('/checkout/customer')
   }
+
+  const stepLabel = `Step ${idx + 1} of ${uploadQueue.length}`
+  const backTo =
+    idx > 0 ? `/checkout/upload/${idx - 1}` : '/'
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:py-14">
       <Link
-        to={`/product/${slug}`}
+        to={backTo}
         className="mb-6 inline-flex text-sm font-medium text-[#9d174d] hover:text-[#831843]"
       >
-        ← Back to product
+        {idx > 0 ? '← Previous upload' : '← Back to shop'}
       </Link>
+
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#be185d]">
+        {stepLabel} · Cart checkout
+      </p>
 
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -132,22 +139,32 @@ export default function UploadPage() {
         className="rounded-3xl border border-[#fce7f3] bg-[#fffafc] p-6 shadow-inner shadow-pink-100/40 sm:p-8"
       >
         <h1 className="font-semibold text-2xl text-[#831843] sm:text-3xl">
-          Upload your photos
+          Upload photos for {currentLine.name}
         </h1>
+        {currentLine.qty > 1 && (
+          <p className="mt-1 text-xs text-[#6b7280]">
+            Line quantity ×{currentLine.qty} — one set of photos for this line.
+          </p>
+        )}
         <p className="mt-2 text-sm leading-relaxed text-[#6b7280]">
           {requiredCount != null ? (
             <>
               Upload exactly{' '}
               <span className="font-semibold text-[#9d174d]">{requiredCount}</span>{' '}
-              photos for{' '}
-              <span className="font-medium text-[#9d174d]">{product.name}</span>.
-              Not more, not less — you can swap photos by removing one first.
+              photos for this item. Not more, not less — you can swap photos by
+              removing one first.
             </>
           ) : (
             <>
-              Add the images you want us to use for{' '}
-              <span className="font-medium text-[#9d174d]">{product.name}</span>.
-              You can preview them below before continuing.
+              Add the images we should use for{' '}
+              <span className="font-medium text-[#9d174d]">{currentLine.name}</span>
+              {currentLine.summary ? (
+                <>
+                  {' '}
+                  <span className="text-[#9ca3af]">({currentLine.summary})</span>
+                </>
+              ) : null}
+              .
             </>
           )}
         </p>
@@ -211,7 +228,7 @@ export default function UploadPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => removeFileAt(i)}
+                    onClick={() => removeCartLineFileAt(lineId, i)}
                     className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-sm font-bold text-white transition hover:bg-black/70"
                     aria-label={`Remove image ${i + 1}`}
                   >
@@ -222,17 +239,17 @@ export default function UploadPage() {
             </ul>
             <button
               type="button"
-              onClick={() => clearFiles()}
+              onClick={() => clearCartLineFiles(lineId)}
               className="mt-3 text-xs font-medium text-[#db2777] underline hover:text-[#be185d]"
             >
-              Clear all
+              Clear all for this item
             </button>
           </div>
         )}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <Link
-            to={`/product/${slug}`}
+            to="/"
             className="rounded-2xl border border-[#fbcfe8] bg-white px-6 py-3 text-center text-sm font-semibold text-[#db2777] transition hover:bg-[#fdf2f8]"
           >
             Cancel
@@ -243,7 +260,7 @@ export default function UploadPage() {
             onClick={onContinue}
             className="rounded-2xl bg-gradient-to-r from-[#f472b6] to-[#ec4899] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Continue
+            {idx < uploadQueue.length - 1 ? 'Next item' : 'Continue to details'}
           </button>
         </div>
       </motion.div>

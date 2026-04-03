@@ -2,6 +2,24 @@
  * Dynamic price helpers for products with fixed price, flat variants, or paper + sides options.
  */
 
+function emptyKeepsakeCustomization(layout) {
+  const o = {}
+  for (const f of layout?.textFields ?? []) {
+    o[f.key] = ''
+  }
+  return o
+}
+
+export function isKeepsakeCustomizationComplete(product, selection) {
+  if (selection.kind !== 'keepsake') return true
+  const layout = product.frameLayouts?.[selection.layoutIndex]
+  if (!layout) return false
+  for (const f of layout.textFields ?? []) {
+    if (!selection.customization[f.key]?.trim()) return false
+  }
+  return true
+}
+
 export function getMinPrice(product) {
   if (product.price != null) return product.price
   if (product.options?.length) {
@@ -19,8 +37,22 @@ export function getMinPrice(product) {
   return 0
 }
 
-/** @returns {{ kind: 'simple' } | { kind: 'options', paperIndex: number, sideIndex: number } | { kind: 'variants', index: number }} */
+/**
+ * @returns {{ kind: 'simple' } | { kind: 'options', paperIndex: number, sideIndex: number } | { kind: 'variants', index: number } | { kind: 'keepsake', sizeIndex: number, layoutIndex: number, customization: Record<string, string> }}
+ */
 export function defaultSelection(product) {
+  if (
+    product.frameLayouts?.length &&
+    product.variants?.length
+  ) {
+    const layout = product.frameLayouts[0]
+    return {
+      kind: 'keepsake',
+      sizeIndex: 0,
+      layoutIndex: 0,
+      customization: emptyKeepsakeCustomization(layout),
+    }
+  }
   if (product.price != null) return { kind: 'simple' }
   if (product.options?.length) {
     return { kind: 'options', paperIndex: 0, sideIndex: 0 }
@@ -33,6 +65,10 @@ export function defaultSelection(product) {
 
 export function getPrice(product, selection) {
   if (product.price != null) return product.price
+  if (selection.kind === 'keepsake') {
+    const v = product.variants?.[selection.sizeIndex]
+    return v?.price ?? 0
+  }
   if (selection.kind === 'options') {
     const g = product.options[selection.paperIndex]
     if (!g) return 0
@@ -48,6 +84,21 @@ export function getPrice(product, selection) {
 
 export function getSelectionSummary(product, selection) {
   if (selection.kind === 'simple') return 'Standard'
+  if (selection.kind === 'keepsake') {
+    const size = product.variants?.[selection.sizeIndex]
+    const layout = product.frameLayouts?.[selection.layoutIndex]
+    const sizeLabel = size?.size ? `Size ${size.size}` : ''
+    const layoutPart = layout
+      ? `${layout.name} (${layout.photoCount} photos)`
+      : ''
+    const head = [sizeLabel, layoutPart].filter(Boolean).join(' · ')
+    const textLines = []
+    for (const field of layout?.textFields ?? []) {
+      const val = selection.customization[field.key]?.trim()
+      if (val) textLines.push(`${field.label}: ${val}`)
+    }
+    return [head, ...textLines].join('\n')
+  }
   if (selection.kind === 'options') {
     const g = product.options[selection.paperIndex]
     const v = g?.variants[selection.sideIndex]

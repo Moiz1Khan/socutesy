@@ -85,6 +85,111 @@ export const products = [
     price: 1500,
   },
   {
+    id: 'keepsake-frame',
+    slug: 'keepsake-frame',
+    name: 'KeepSake Frame',
+    category: 'gifts',
+    image: '/images/keepsake-wedding-6.png',
+    images: [
+      '/images/keepsake-wedding-6.png',
+      '/images/keepsake-grid-9.png',
+      '/images/keepsake-love-8.png',
+      '/images/keepsake-polaroid-5.png',
+      '/images/keepsake-extra-1.png',
+    ],
+    imageAlt:
+      'Keepsake frame collage layouts — wedding grid, classic 9-grid, LOVE design, and Polaroid film strip.',
+    description:
+      'Personalized framed collages — choose your layout, add names and dates, then upload the exact number of photos for that design. Available in A4 or A3.',
+    detailBullets: [
+      'Four layout styles (6, 9, 8, or 5 photos)',
+      'Custom text per layout',
+      'Pick A4 or A3 before checkout',
+    ],
+    variantSelectLabel: 'Paper size',
+    variants: [
+      { size: 'A4', price: 2500 },
+      { size: 'A3', price: 3500 },
+    ],
+    frameLayouts: [
+      {
+        id: 'wedding-6',
+        name: 'Classic wedding collage',
+        photoCount: 6,
+        previewImage: '/images/keepsake-wedding-6.png',
+        blurb:
+          'Names and date on top; six-photo grid — one tall, two pairs, one vertical accent.',
+        textFields: [
+          { key: 'names', label: 'Names', placeholder: 'e.g. Juliana & Howard' },
+          { key: 'date', label: 'Date', placeholder: 'e.g. 10.05.2023' },
+        ],
+      },
+      {
+        id: 'grid-9',
+        name: '9-grid with header & footer',
+        photoCount: 9,
+        previewImage: '/images/keepsake-grid-9.png',
+        blurb:
+          'Large heading with overlay script, 3×3 photo grid, names along the bottom.',
+        textFields: [
+          { key: 'headerMain', label: 'Main heading', placeholder: 'e.g. AMO' },
+          {
+            key: 'headerOverlay',
+            label: 'Overlay text',
+            placeholder: 'e.g. eu te',
+          },
+          {
+            key: 'footerNames',
+            label: 'Footer names',
+            placeholder: 'e.g. VINÍCIUS & PAULA',
+          },
+        ],
+      },
+      {
+        id: 'love-8',
+        name: 'LOVE collage',
+        photoCount: 8,
+        previewImage: '/images/keepsake-love-8.png',
+        blurb:
+          'Bold LOVE letters with photos around each letter; message under a heart divider.',
+        textFields: [
+          {
+            key: 'bottomMessage',
+            label: 'Bottom message',
+            placeholder: 'e.g. Feliz Dia dos Namorados',
+          },
+        ],
+      },
+      {
+        id: 'polaroid-5',
+        name: 'Polaroid & film strip',
+        photoCount: 5,
+        previewImage: '/images/keepsake-polaroid-5.png',
+        blurb:
+          'Large Polaroid with header, date on the border, film strip with four photos, quote below.',
+        textFields: [
+          { key: 'header', label: 'Header', placeholder: 'e.g. 1st Anniversary' },
+          {
+            key: 'polaroidDate',
+            label: 'Date (on Polaroid)',
+            placeholder: 'e.g. 20 . 05 . 2024',
+          },
+          {
+            key: 'names',
+            label: 'Names',
+            placeholder: 'e.g. Darcel ❤️ Blayne',
+          },
+          {
+            key: 'quote',
+            label: 'Quote / message',
+            placeholder: 'Your message…',
+            multiline: true,
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'coloring-book',
     slug: 'coloring-book',
     name: 'Coloring Book',

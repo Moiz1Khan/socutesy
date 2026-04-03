@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage'
 import ProductDetail from './pages/ProductDetail'
 import CustomizePlaceholder from './pages/CustomizePlaceholder'
 import UploadPage from './pages/UploadPage'
+import CartCheckoutUploadPage from './pages/CartCheckoutUploadPage'
 import CustomerFormPage from './pages/CustomerFormPage'
 import PaymentPage from './pages/PaymentPage'
 import ContactRedirect from './pages/ContactRedirect'
@@ -25,6 +26,10 @@ function AppShell() {
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/" element={<HomePage />} />
               <Route path="/product/:slug" element={<ProductDetail />} />
+              <Route
+                path="/checkout/upload/:uploadIndex"
+                element={<CartCheckoutUploadPage />}
+              />
               <Route path="/checkout/customer" element={<CustomerFormPage />} />
               <Route path="/checkout/payment" element={<PaymentPage />} />
               <Route path="/order/:slug/upload" element={<UploadPage />} />

@@ -2,7 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getProductBySlug } from '../utils/products'
-import { UPLOAD_PRODUCT_SLUGS } from '../utils/orderFlow'
+import {
+  UPLOAD_PRODUCT_SLUGS,
+  getRequiredUploadCount,
+  getOrderTotalAmount,
+  splitAdvancePayment,
+  getCartLinesRequiringUpload,
+  getFirstIncompleteCartUploadIndex,
+  isCartLineUploadComplete,
+  collectCartUploadFiles,
+} from '../utils/orderFlow'
 import {
   defaultSelection,
   getPrice,
@@ -11,10 +20,6 @@ import {
 import { CustomerForm } from '../components/CustomerForm'
 import { useOrderFlow } from '../context/OrderFlowContext'
 import { createOrder, uploadOrderPhotos } from '../api/ordersApi'
-import {
-  getOrderTotalAmount,
-  splitAdvancePayment,
-} from '../utils/orderFlow'
 
 export default function CustomerFormPage() {
   const { slug } = useParams()
@@ -34,6 +39,8 @@ export default function CustomerFormPage() {
     unitPrice,
     orderQty,
     selectionSummary,
+    requiredUploadCount,
+    cartLineFiles,
     setServerOrderId,
   } = useOrderFlow()
   const [saveError, setSaveError] = useState(null)
@@ -69,6 +76,7 @@ export default function CustomerFormPage() {
         price: st.price,
         summary: st.summary,
         quantity: st.quantity ?? 1,
+        requiredUploadCount: st.requiredUploadCount,
       })
       return
     }
@@ -84,11 +92,48 @@ export default function CustomerFormPage() {
   }, [isCartCheckout, product, slug, location.state, setOrderMeta])
 
   useEffect(() => {
+    if (!isCartCheckout) return
+    if (checkoutSource !== 'cart' || !cartSnapshot?.length) return
+    const queue = getCartLinesRequiringUpload(cartSnapshot)
+    if (queue.length === 0) return
+    const incomplete = getFirstIncompleteCartUploadIndex(
+      queue,
+      cartLineFiles,
+    )
+    if (incomplete >= 0) {
+      navigate(`/checkout/upload/${incomplete}`, { replace: true })
+    }
+  }, [
+    isCartCheckout,
+    checkoutSource,
+    cartSnapshot,
+    cartLineFiles,
+    navigate,
+  ])
+
+  useEffect(() => {
     if (isCartCheckout || !product || !UPLOAD_PRODUCT_SLUGS.has(slug)) return
+    const required =
+      requiredUploadCount ??
+      getRequiredUploadCount(slug, selectionSummary)
+    if (required != null) {
+      if (files.length !== required) {
+        navigate(`/order/${slug}/upload`, { replace: true })
+      }
+      return
+    }
     if (files.length === 0) {
       navigate(`/order/${slug}/upload`, { replace: true })
     }
-  }, [isCartCheckout, product, slug, files.length, navigate])
+  }, [
+    isCartCheckout,
+    product,
+    slug,
+    files.length,
+    navigate,
+    requiredUploadCount,
+    selectionSummary,
+  ])
 
   if (isCartCheckout) {
     if (checkoutSource !== 'cart' || !cartSnapshot?.length) return null
@@ -96,8 +141,34 @@ export default function CustomerFormPage() {
     return null
   }
 
+  const isUploadFlow = !isCartCheckout && product && UPLOAD_PRODUCT_SLUGS.has(slug)
+
   const handleSubmit = async (data) => {
     setSaveError(null)
+    if (isCartCheckout && cartSnapshot?.length) {
+      const queue = getCartLinesRequiringUpload(cartSnapshot)
+      for (const line of queue) {
+        if (!isCartLineUploadComplete(line, cartLineFiles[line.lineId])) {
+          const inc = getFirstIncompleteCartUploadIndex(queue, cartLineFiles)
+          navigate(`/checkout/upload/${inc >= 0 ? inc : 0}`, { replace: true })
+          return
+        }
+      }
+    }
+    if (isUploadFlow) {
+      const required =
+        requiredUploadCount ??
+        getRequiredUploadCount(slug, selectionSummary)
+      if (required != null && files.length !== required) {
+        setSaveError(`Please upload exactly ${required} photos before continuing.`)
+        navigate(`/order/${slug}/upload`, { replace: true })
+        return
+      }
+      if (required == null && files.length === 0) {
+        navigate(`/order/${slug}/upload`, { replace: true })
+        return
+      }
+    }
     setSaving(true)
     try {
       const includeDelivery = data.includeDelivery !== false
@@ -124,7 +195,10 @@ export default function CustomerFormPage() {
       }
 
       const { id } = await createOrder(payload)
-      await uploadOrderPhotos(id, files)
+      const filesToUpload = isCartCheckout
+        ? collectCartUploadFiles(cartSnapshot, cartLineFiles)
+        : files
+      await uploadOrderPhotos(id, filesToUpload)
       setCustomer(data)
       setServerOrderId(id)
       if (isCartCheckout) {
@@ -140,8 +214,6 @@ export default function CustomerFormPage() {
       setSaving(false)
     }
   }
-
-  const isUploadFlow = !isCartCheckout && product && UPLOAD_PRODUCT_SLUGS.has(slug)
 
   const backHref = isCartCheckout
     ? '/'

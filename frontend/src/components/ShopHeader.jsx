@@ -6,6 +6,7 @@ import { IconSearch, IconSliders, IconCart } from './icons'
 import { useCart } from '../context/CartContext'
 import { useShop } from '../context/ShopContext'
 import { categories } from '../utils/products'
+import { getCartLinesRequiringUpload } from '../utils/orderFlow'
 import { useOrderFlow } from '../context/OrderFlowContext'
 
 export function ShopHeader() {
@@ -32,54 +33,40 @@ export function ShopHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#e5e7eb] bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex shrink-0 flex-wrap items-center gap-3 sm:gap-4">
-          <Link
-            to="/"
-            className="inline-flex w-fit max-w-full items-center gap-3 rounded-2xl bg-[#fdeef4] px-4 py-3 shadow-sm transition hover:opacity-95 sm:gap-4 sm:px-5 sm:py-3.5"
-          >
-            <GiftIcon className="h-9 w-9 shrink-0 sm:h-11 sm:w-11" />
-            <div className="min-w-0">
-              <p className="font-logo-wordmark text-2xl lowercase leading-tight sm:text-3xl">
-                socutesy
-              </p>
-              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] text-[#c49aa8] sm:text-xs">
-                GIFT SHOP
-              </p>
-            </div>
-          </Link>
-        </div>
+      <div className="mx-auto flex max-w-6xl flex-nowrap items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5 lg:px-6">
+        <Link
+          to="/"
+          className="inline-flex max-w-[min(100%,11rem)] shrink-0 items-center gap-2 rounded-xl bg-[#fdeef4] px-2.5 py-1.5 shadow-sm transition hover:opacity-95 sm:max-w-none sm:gap-2.5 sm:rounded-2xl sm:px-3 sm:py-2"
+        >
+          <GiftIcon className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" />
+          <div className="min-w-0 leading-none">
+            <p className="font-logo-wordmark text-lg lowercase leading-tight sm:text-xl md:text-2xl">
+              socutesy
+            </p>
+            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#c49aa8] sm:text-[10px] sm:tracking-[0.35em]">
+              GIFT SHOP
+            </p>
+          </div>
+        </Link>
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <label className="relative hidden min-w-[200px] flex-1 md:block">
-            <span className="sr-only">Search products</span>
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full rounded-xl border border-[#e5e7eb] bg-white py-2.5 pl-10 pr-4 text-sm text-[#111827] placeholder:text-[#9ca3af] focus:border-[#ff8fa3] focus:outline-none focus:ring-2 focus:ring-[#ff8fa3]/30"
-            />
-          </label>
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Search products</span>
+          <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] sm:left-3" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className="w-full min-w-0 rounded-lg border border-[#e5e7eb] bg-white py-2 pl-9 pr-3 text-sm text-[#111827] placeholder:text-[#9ca3af] focus:border-[#ff8fa3] focus:outline-none focus:ring-2 focus:ring-[#ff8fa3]/30 sm:rounded-xl sm:py-2.5 sm:pl-10 sm:pr-4"
+          />
+        </label>
 
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#374151] transition hover:bg-[#f9fafb] md:hidden"
-            aria-label="Search"
-            onClick={() => {
-              const el = document.getElementById('mobile-search')
-              el?.focus()
-            }}
-          >
-            <IconSearch className="h-5 w-5" />
-          </button>
-
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div className="relative" ref={filterRef}>
             <button
               type="button"
               onClick={() => setFilterOpen((o) => !o)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#374151] transition hover:bg-[#f9fafb]"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] transition hover:bg-[#f9fafb] sm:h-11 sm:w-11 sm:rounded-xl"
               aria-expanded={filterOpen}
               aria-label="Filter categories"
             >
@@ -127,7 +114,7 @@ export function ShopHeader() {
           <button
             type="button"
             onClick={() => setCartOpen((o) => !o)}
-            className="relative flex h-11 items-center gap-2 rounded-xl bg-[#ff8fa3] px-4 font-semibold text-white shadow-sm transition hover:bg-[#ff7a91]"
+            className="relative flex h-10 items-center gap-1.5 rounded-lg bg-[#ff8fa3] px-2.5 font-semibold text-white shadow-sm transition hover:bg-[#ff7a91] sm:h-11 sm:gap-2 sm:rounded-xl sm:px-4"
           >
             <IconCart className="h-5 w-5" />
             <span className="hidden sm:inline">Cart</span>
@@ -137,20 +124,6 @@ export function ShopHeader() {
               </span>
             )}
           </button>
-        </div>
-      </div>
-
-      <div className="border-t border-[#f3f4f6] px-4 py-2 md:hidden">
-        <div className="relative">
-          <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
-          <input
-            id="mobile-search"
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products..."
-            className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb] py-2.5 pl-10 pr-4 text-sm focus:border-[#ff8fa3] focus:outline-none focus:ring-2 focus:ring-[#ff8fa3]/30"
-          />
         </div>
       </div>
 
@@ -181,7 +154,7 @@ function CartPopover({ open, onClose }) {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="fixed right-4 top-[5.5rem] z-50 max-h-[70vh] w-[min(100vw-2rem,22rem)] overflow-auto rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-xl sm:right-6"
+            className="fixed right-3 top-[calc(3.5rem+env(safe-area-inset-top))] z-50 max-h-[70vh] w-[min(100vw-1.5rem,22rem)] overflow-auto rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-xl sm:right-6 sm:top-[calc(4rem+env(safe-area-inset-top))]"
           >
             <p className="font-semibold text-[#111827]">Your cart</p>
             {items.length === 0 ? (
@@ -261,7 +234,14 @@ function CartPopover({ open, onClose }) {
               onClick={() => {
                 if (items.length === 0) return
                 setCheckoutFromCart(items)
-                navigate('/checkout/customer', { state: { cartItems: items } })
+                const needUpload = getCartLinesRequiringUpload(items)
+                if (needUpload.length > 0) {
+                  navigate('/checkout/upload/0', { state: { cartItems: items } })
+                } else {
+                  navigate('/checkout/customer', {
+                    state: { cartItems: items },
+                  })
+                }
                 onClose()
               }}
             >

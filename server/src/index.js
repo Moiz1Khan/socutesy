@@ -17,6 +17,7 @@ import {
   ORDER_ID_SCHEME,
   SHORT_ORDER_ID_RE,
 } from './orderId.js'
+import { getRequiredUploadCount } from './uploadRules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 3000
@@ -289,6 +290,38 @@ app.post(
     }
 
     const db = getDb()
+    let orderSlug = null
+    let selectionSummary = null
+    try {
+      const sStmt = db.prepare(
+        'SELECT slug, selection_summary FROM orders WHERE id = ?',
+      )
+      sStmt.bind([orderId])
+      if (sStmt.step()) {
+        const row = sStmt.getAsObject()
+        orderSlug = row.slug ?? null
+        selectionSummary = row.selection_summary ?? null
+      }
+      sStmt.free()
+    } catch (e) {
+      console.error(e)
+    }
+
+    const requiredCount = getRequiredUploadCount(orderSlug, selectionSummary)
+    if (requiredCount != null && files.length !== requiredCount) {
+      const dir = path.join(uploadRoot, orderId)
+      for (const f of files) {
+        try {
+          fs.unlinkSync(path.join(dir, f.filename))
+        } catch {
+          /* ignore */
+        }
+      }
+      return res.status(400).json({
+        error: `This product requires exactly ${requiredCount} photos (you sent ${files.length})`,
+      })
+    }
+
     try {
       db.run('BEGIN')
       for (const f of files) {
