@@ -15,7 +15,11 @@ One **Docker** image runs the **Vite build**, **Express API**, and serves the sh
 
 ### Build failed with exit code 137?
 
-That often means the **build ran out of memory** while `npm` was installing (Linux may send **SIGKILL**, exit **128+9=137**). Try: redeploy with the latest Dockerfile (lower npm concurrency + npm cache mounts), or increase the **builder** resources in Railway if your plan allows. Logs that say **context canceled** can also mean the build was stopped manually or timed out.
+That often means the **build ran out of memory** while `npm` was installing (Linux may send **SIGKILL**, exit **128+9=137**). Try: redeploy with the latest Dockerfile (lower npm concurrency), or increase the **builder** resources in Railway if your plan allows. Logs that say **context canceled** can also mean the build was stopped manually or timed out.
+
+### GitHub shows a red ✗ on commits?
+
+Open the commit → **Details** on the failed check. This repo runs **GitHub Actions** (`.github/workflows/ci.yml`): `npm ci`, `npm run lint`, and `npm run build` in `frontend/`. Fix any reported errors and push again. A separate red status may come from **Railway** or **Vercel** if those apps are linked to the repo—check their dashboards for deploy logs.
 
 ## 2. Docker build arguments (required)
 
